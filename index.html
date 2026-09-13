@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>OmniHub — Life Management</title>
+  
+  <!-- Mobile & PWA Capable -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0f172a">
+  
+  <!-- Tailwind CSS & Lucide Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <style>
+    /* Mobile app native feelings */
+    body { -webkit-tap-highlight-color: transparent; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    .drawer-active { transform: translateX(0%); }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- Top Navigation Bar -->
+  <header class="sticky top-0 z-40 bg-slate-900/90 backdrop-blur border-b border-slate-800 px-4 py-3">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <div class="p-2 bg-indigo-600 rounded-xl">
+          <i data-lucide="layout-grid" class="w-5 h-5 text-white"></i>
+        </div>
+        <span class="font-bold text-lg hidden sm:inline tracking-tight">OmniHub</span>
+      </div>
+
+      <!-- Universal Search -->
+      <div class="flex-1 max-w-2xl relative">
+        <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-400"></i>
+        <input 
+          id="globalSearch" 
+          type="text" 
+          placeholder="Search everything across todos, notes, news, dictionary..." 
+          class="w-full bg-slate-800 border border-slate-700 pl-9 pr-4 py-2 rounded-xl text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+          oninput="handleGlobalSearch(this.value)"
+        />
+      </div>
+
+      <!-- Actions & Notification Button -->
+      <div class="flex items-center gap-2">
+        <button id="notifBtn" onclick="toggleDrawer()" class="relative p-2 rounded-xl bg-slate-800 hover:bg-slate-700 transition">
+          <i data-lucide="bell" class="w-5 h-5 text-slate-300"></i>
+          <span id="notifBadge" class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-slate-900 hidden"></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile-Style Notification Drawer -->
+  <div id="drawerBackdrop" onclick="toggleDrawer()" class="fixed inset-0 bg-black/60 z-50 opacity-0 pointer-events-none transition-opacity duration-300"></div>
+  <aside id="drawer" class="fixed right-0 top-0 bottom-0 w-full sm:w-96 bg-slate-900 border-l border-slate-800 z-50 translate-x-full transition-transform duration-300 ease-in-out p-5 flex flex-col shadow-2xl">
+    <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+      <div class="flex items-center gap-2">
+        <i data-lucide="bell" class="w-5 h-5 text-indigo-400"></i>
+        <h2 class="font-semibold text-lg">Action Center</h2>
+      </div>
+      <button onclick="toggleDrawer()" class="p-1 rounded-lg hover:bg-slate-800">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+    
+    <div id="notifList" class="flex-1 overflow-y-auto divide-y divide-slate-800/60 py-2">
+      <!-- Injected by JS -->
+    </div>
+  </aside>
+
+  <!-- Main Grid Dashboard -->
+  <main class="max-w-7xl mx-auto p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+    <!-- Section: Todo List -->
+    <div class="search-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 flex flex-col h-96">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="font-semibold flex items-center gap-2"><i data-lucide="check-square" class="text-indigo-400 w-4 h-4"></i> Tasks & Todos</h3>
+        <span id="todoCount" class="text-xs text-slate-400">0 tasks</span>
+      </div>
+      <form onsubmit="addTodo(event)" class="flex gap-2 mb-3">
+        <input id="todoInput" type="text" placeholder="Add a new task..." required class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none" />
+        <button type="submit" class="bg-indigo-600 px-3 py-1.5 rounded-lg text-sm hover:bg-indigo-500 font-medium">+</button>
+      </form>
+      <div id="todoContainer" class="flex-1 overflow-y-auto space-y-2"></div>
+    </div>
+
+    <!-- Section: Notes -->
+    <div class="search-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 flex flex-col h-96">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="font-semibold flex items-center gap-2"><i data-lucide="file-text" class="text-amber-400 w-4 h-4"></i> Quick Notes</h3>
+      </div>
+      <form onsubmit="addNote(event)" class="space-y-2 mb-3">
+        <input id="noteTitle" type="text" placeholder="Note title..." required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none" />
+        <div class="flex gap-2">
+          <input id="noteContent" type="text" placeholder="Details..." required class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none" />
+          <button type="submit" class="bg-amber-600 px-3 py-1.5 rounded-lg text-sm hover:bg-amber-500 font-medium">Save</button>
+        </div>
+      </form>
+      <div id="notesContainer" class="flex-1 overflow-y-auto space-y-2"></div>
+    </div>
+
+    <!-- Section: Reminders & Calendar Events -->
+    <div class="search-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 flex flex-col h-96">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="font-semibold flex items-center gap-2"><i data-lucide="calendar" class="text-emerald-400 w-4 h-4"></i> Calendar & Reminders</h3>
+      </div>
+      <form onsubmit="addReminder(event)" class="space-y-2 mb-3">
+        <input id="remindTitle" type="text" placeholder="Event or reminder title..." required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none" />
+        <div class="flex gap-2">
+          <input id="remindTime" type="datetime-local" required class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1 text-xs focus:border-indigo-500 focus:outline-none" />
+          <button type="submit" class="bg-emerald-600 px-3 py-1.5 rounded-lg text-sm hover:bg-emerald-500 font-medium">Add</button>
+        </div>
+      </form>
+      <div id="reminderContainer" class="flex-1 overflow-y-auto space-y-2"></div>
+    </div>
+
+    <!-- Section: News Feed (India, Telangana, AP) -->
+    <div class="search-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 flex flex-col h-96">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="font-semibold flex items-center gap-2"><i data-lucide="newspaper" class="text-sky-400 w-4 h-4"></i> Regional News</h3>
+        <select id="newsRegion" onchange="fetchNews(this.value)" class="bg-slate-900 text-xs border border-slate-700 rounded-lg px-2 py-1 outline-none">
+          <option value="Telangana">Telangana</option>
+          <option value="Andhra Pradesh">Andhra Pradesh</option>
+          <option value="India">India</option>
+        </select>
+      </div>
+      <div id="newsContainer" class="flex-1 overflow-y-auto space-y-2 text-sm">
+        <div class="animate-pulse space-y-2">
+          <div class="h-10 bg-slate-700/50 rounded-lg"></div>
+          <div class="h-10 bg-slate-700/50 rounded-lg"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: Files and Google Drive Upload -->
+    <div class="search-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 flex flex-col h-96">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="font-semibold flex items-center gap-2"><i data-lucide="hard-drive" class="text-rose-400 w-4 h-4"></i> Drive Files</h3>
+      </div>
+      <div class="border-2 border-dashed border-slate-700 rounded-xl p-3 text-center mb-3">
+        <input type="file" id="fileInput" class="hidden" onchange="uploadFile(this)" />
+        <label for="fileInput" class="cursor-pointer text-xs text-indigo-400 hover:text-indigo-300">
+          Click to upload file directly to Drive
+        </label>
+        <span id="uploadStatus" class="block text-xs text-slate-400 mt-1"></span>
+      </div>
+      <div id="fileContainer" class="flex-1 overflow-y-auto space-y-2"></div>
+    </div>
+
+    <!-- Section: Contacts Quick Vault -->
+    <div class="search-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 flex flex-col h-96">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="font-semibold flex items-center gap-2"><i data-lucide="users" class="text-purple-400 w-4 h-4"></i> Contacts Directory</h3>
+      </div>
+      <form onsubmit="addContact(event)" class="space-y-2 mb-3">
+        <input id="contactName" type="text" placeholder="Name" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm outline-none" />
+        <div class="flex gap-2">
+          <input id="contactPhone" type="tel" placeholder="Phone" class="w-1/2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm outline-none" />
+          <button type="submit" class="w-1/2 bg-purple-600 rounded-lg text-sm hover:bg-purple-500 font-medium">Save</button>
+        </div>
+      </form>
+      <div id="contactsContainer" class="flex-1 overflow-y-auto space-y-2"></div>
+    </div>
+
+    <!-- Section: Instant Dictionary -->
+    <div class="search-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 flex flex-col h-96">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="font-semibold flex items-center gap-2"><i data-lucide="book-open" class="text-teal-400 w-4 h-4"></i> Quick Dictionary</h3>
+      </div>
+      <div class="flex gap-2 mb-3">
+        <input id="dictQuery" type="text" placeholder="Lookup a word..." class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm outline-none" />
+        <button onclick="lookupWord()" class="bg-teal-600 px-3 py-1.5 rounded-lg text-sm hover:bg-teal-500 font-medium">Search</button>
+      </div>
+      <div id="dictResult" class="flex-1 overflow-y-auto bg-slate-900/50 p-3 rounded-xl text-xs space-y-1">
+        <p class="text-slate-400">Results will display here...</p>
+      </div>
+    </div>
+
+    <!-- Section: Quick Links & Web Shortcuts -->
+    <div class="search-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 flex flex-col h-96">
+      <h3 class="font-semibold flex items-center gap-2 mb-3"><i data-lucide="link" class="text-yellow-400 w-4 h-4"></i> Productivity Shortcuts</h3>
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <a href="https://mail.google.com" target="_blank" class="p-3 bg-slate-900 hover:bg-slate-700 rounded-xl flex items-center gap-2 transition"><i data-lucide="mail" class="w-4 h-4 text-red-400"></i> Gmail</a>
+        <a href="https://drive.google.com" target="_blank" class="p-3 bg-slate-900 hover:bg-slate-700 rounded-xl flex items-center gap-2 transition"><i data-lucide="folder" class="w-4 h-4 text-blue-400"></i> Drive</a>
+        <a href="https://calendar.google.com" target="_blank" class="p-3 bg-slate-900 hover:bg-slate-700 rounded-xl flex items-center gap-2 transition"><i data-lucide="calendar" class="w-4 h-4 text-emerald-400"></i> Calendar</a>
+        <a href="https://github.com" target="_blank" class="p-3 bg-slate-900 hover:bg-slate-700 rounded-xl flex items-center gap-2 transition"><i data-lucide="github" class="w-4 h-4 text-white"></i> GitHub</a>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    // 1. CONFIGURATION: Insert your Google Apps Script Deployment Web App URL here
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx7ixeU6Bp8yBpT2qa8k46R0XQJKLti0WPUm_8c7VBzBvAPPOtJoro_mAe9WTmXsZhX/exec";
+
+    // Application State
+    let AppData = { todos: [], notes: [], contacts: [], reminders: [], files: [] };
+
+    document.addEventListener("DOMContentLoaded", () => {
+      lucide.createIcons();
+      fetchNews("Telangana");
+      loadCloudData();
+    });
+
+    // Toggle Notifications Drawer
+    function toggleDrawer() {
+      const drawer = document.getElementById("drawer");
+      const backdrop = document.getElementById("drawerBackdrop");
+      const isOpen = drawer.classList.contains("drawer-active");
+
+      if (isOpen) {
+        drawer.classList.remove("drawer-active");
+        backdrop.classList.add("opacity-0", "pointer-events-none");
+      } else {
+        drawer.classList.add("drawer-active");
+        backdrop.classList.remove("opacity-0", "pointer-events-none");
+        document.getElementById("notifBadge").classList.add("hidden");
+      }
+    }
+
+    // Live Universal Search
+    function handleGlobalSearch(query) {
+      const term = query.toLowerCase().trim();
+      const items = document.querySelectorAll(".search-card");
+
+      items.forEach(card => {
+        const text = card.innerText.toLowerCase();
+        card.style.display = term === "" || text.includes(term) ? "flex" : "none";
+      });
+    }
+
+    // Google Apps Script API Communication
+    async function postToSheet(payload) {
+      try {
+        await fetch(SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+      } catch (err) {
+        console.error("Cloud Sync Error:", err);
+      }
+    }
+
+    async function loadCloudData() {
+      if (!SCRIPT_URL || SCRIPT_URL.includes("YOUR_APPS_SCRIPT")) {
+        console.warn("Apps Script URL missing. Running in local state.");
+        return;
+      }
+      try {
+        const res = await fetch(SCRIPT_URL);
+        const json = await res.json();
+        if (json.status === "success") {
+          AppData = json.data;
+          renderAll();
+        }
+      } catch (err) {
+        console.error("Failed fetching data from Google Sheet:", err);
+      }
+    }
+
+    // Render Data to UI
+    function renderAll() {
+      // Render Todos
+      const todoContainer = document.getElementById("todoContainer");
+      todoContainer.innerHTML = (AppData.todos || []).map(t => `
+        <div class="flex items-center justify-between p-2 rounded bg-slate-950 text-xs">
+          <span>${t.task}</span>
+          <button onclick="deleteItem('Todos', '${t.id}')" class="text-rose-400 hover:underline">Done</button>
+        </div>
+      `).join("");
+      document.getElementById("todoCount").innerText = `${(AppData.todos || []).length} tasks`;
+
+      // Render Notes
+      const notesContainer = document.getElementById("notesContainer");
+      notesContainer.innerHTML = (AppData.notes || []).map(n => `
+        <div class="p-2 rounded bg-slate-950 text-xs">
+          <div class="font-bold text-amber-300">${n.title}</div>
+          <div class="text-slate-300">${n.content}</div>
+        </div>
+      `).join("");
+
+      // Render Contacts
+      const contactsContainer = document.getElementById("contactsContainer");
+      contactsContainer.innerHTML = (AppData.contacts || []).map(c => `
+        <div class="flex justify-between p-2 rounded bg-slate-950 text-xs">
+          <span>${c.name}</span>
+          <a href="tel:${c.phone}" class="text-indigo-400 underline">${c.phone}</a>
+        </div>
+      `).join("");
+
+      // Render Files
+      const fileContainer = document.getElementById("fileContainer");
+      fileContainer.innerHTML = (AppData.files || []).map(f => `
+        <div class="flex justify-between p-2 rounded bg-slate-950 text-xs">
+          <span class="truncate max-w-[150px]">${f.name}</span>
+          <a href="${f.url}" target="_blank" class="text-emerald-400 underline">View</a>
+        </div>
+      `).join("");
+
+      // Update Notifications Panel
+      renderNotifications();
+      lucide.createIcons();
+    }
+
+    function renderNotifications() {
+      const notifList = document.getElementById("notifList");
+      let notifs = [];
+
+      (AppData.todos || []).forEach(t => notifs.push({ title: "Pending Task", desc: t.task, tag: "Todo" }));
+      (AppData.reminders || []).forEach(r => notifs.push({ title: "Upcoming Event", desc: `${r.title} at${r.datetime}`, tag: "Event" }));
+
+      if (notifs.length > 0) {
+        document.getElementById("notifBadge").classList.remove("hidden");
+        notifList.innerHTML = notifs.map(n => `
+          <div class="py-3">
+            <span class="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-indigo-900 text-indigo-300">${n.tag}</span>
+            <div class="font-medium text-sm mt-1">${n.title}</div>
+            <div class="text-xs text-slate-400">${n.desc}</div>
+          </div>
+        `).join("");
+      } else {
+        notifList.innerHTML = `<div class="text-center text-xs text-slate-500 mt-10">No pending notifications</div>`;
+      }
+    }
+
+    // Action Handlers
+    function addTodo(e) {
+      e.preventDefault();
+      const input = document.getElementById("todoInput");
+      const item = { id: Date.now().toString(), task: input.value, status: "pending", created_at: new Date().toISOString() };
+      AppData.todos = AppData.todos || [];
+      AppData.todos.push(item);
+      postToSheet({ action: "addItem", sheet: "Todos", data: item });
+      input.value = "";
+      renderAll();
+    }
+
+    function addNote(e) {
+      e.preventDefault();
+      const title = document.getElementById("noteTitle");
+      const content = document.getElementById("noteContent");
+      const item = { id: Date.now().toString(), title: title.value, content: content.value, created_at: new Date().toISOString() };
+      AppData.notes = AppData.notes || [];
+      AppData.notes.push(item);
+      postToSheet({ action: "addItem", sheet: "Notes", data: item });
+      title.value = "";
+      content.value = "";
+      renderAll();
+    }
+
+    function addContact(e) {
+      e.preventDefault();
+      const name = document.getElementById("contactName");
+      const phone = document.getElementById("contactPhone");
+      const item = { id: Date.now().toString(), name: name.value, phone: phone.value };
+      AppData.contacts = AppData.contacts || [];
+      AppData.contacts.push(item);
+      postToSheet({ action: "addItem", sheet: "Contacts", data: item });
+      name.value = "";
+      phone.value = "";
+      renderAll();
+    }
+
+    function addReminder(e) {
+      e.preventDefault();
+      const title = document.getElementById("remindTitle");
+      const datetime = document.getElementById("remindTime");
+      const item = { id: Date.now().toString(), title: title.value, datetime: datetime.value, status: "scheduled" };
+      AppData.reminders = AppData.reminders || [];
+      AppData.reminders.push(item);
+      postToSheet({ action: "addItem", sheet: "Reminders", data: item });
+      title.value = "";
+      datetime.value = "";
+      renderAll();
+    }
+
+    function deleteItem(sheet, id) {
+      AppData[sheet.toLowerCase()] = AppData[sheet.toLowerCase()].filter(i => i.id !== id);
+      postToSheet({ action: "deleteItem", sheet: sheet, id: id });
+      renderAll();
+    }
+
+    // Google Drive Base64 File Upload
+    function uploadFile(input) {
+      const file = input.files[0];
+      if (!file) return;
+
+      const status = document.getElementById("uploadStatus");
+      status.innerText = "Uploading to Drive...";
+
+      const reader = new FileReader();
+      reader.onload = async function() {
+        const base64Data = reader.result.split(",")[1];
+        await postToSheet({
+          action: "uploadFile",
+          fileName: file.name,
+          mimeType: file.type,
+          base64Data: base64Data
+        });
+        status.innerText = "Uploaded!";
+        setTimeout(() => { status.innerText = ""; loadCloudData(); }, 2000);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Dictionary API Lookup
+    async function lookupWord() {
+      const word = document.getElementById("dictQuery").value;
+      const resContainer = document.getElementById("dictResult");
+      if (!word) return;
+
+      resContainer.innerHTML = "Looking up...";
+      try {
+        const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+        const data = await res.json();
+        const def = data[0].meanings[0].definitions[0];
+        resContainer.innerHTML = `
+          <div class="font-bold text-slate-200">${data[0].word}</div>
+          <div class="italic text-slate-400">${def.definition}</div>${def.example ? `<div class="text-slate-500">"${def.example}"</div>` : ""}
+        `;
+      } catch (err) {
+        resContainer.innerHTML = `<span class="text-rose-400">Definition not found.</span>`;
+      }
+    }
+
+    // Regional News (Telangana, Andhra Pradesh, India) using RSS2JSON
+    async function fetchNews(region) {
+      const container = document.getElementById("newsContainer");
+      container.innerHTML = `<p class="text-xs text-slate-500">Updating ${region} news...</p>`;
+      
+      const query = encodeURIComponent(region);
+      const rssUrl = `https://news.google.com/rss/search?q=${query}&hl=en-IN&gl=IN&ceid=IN:en`;
+      
+      try {
+        const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`);
+        const json = await res.json();
+        
+        container.innerHTML = json.items.slice(0, 6).map(item => `
+          <a href="${item.link}" target="_blank" class="block p-2 rounded-lg bg-slate-900/60 hover:bg-slate-700/60 transition">
+            <div class="font-medium text-slate-200 line-clamp-1">${item.title}</div>
+            <div class="text-[10px] text-slate-400 mt-1">${new Date(item.pubDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+          </a>
+        `).join("");
+      } catch (err) {
+        container.innerHTML = `<p class="text-xs text-rose-400">Could not fetch news at this time.</p>`;
+      }
+    }
+  </script>
+</body>
+</html>
